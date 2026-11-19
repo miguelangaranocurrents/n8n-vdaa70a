@@ -4,7 +4,12 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import {
+	NodeConnectionTypes,
+	NodeOperationError,
+	isSafeObjectProperty,
+	setSafeObjectProperty,
+} from 'n8n-workflow';
 
 type DataToSave = {
 	values: Array<{ key: string; value: string }>;
@@ -120,8 +125,14 @@ export class ExecutionData implements INodeType {
 
 					const values = dataToSave.reduce(
 						(acc, { key, value }) => {
-							const valueToSet = value ? value : nodeVersion >= 1.1 ? '' : value;
-							acc[key] = valueToSet;
+							// Expressions can resolve to booleans or numbers. Keep falsy values such as 0 and false.
+							if (isSafeObjectProperty(key)) {
+								setSafeObjectProperty(
+									acc,
+									key,
+									nodeVersion >= 1.1 ? String(value ?? '') : value,
+								);
+							}
 							return acc;
 						},
 						{} as { [key: string]: string },
